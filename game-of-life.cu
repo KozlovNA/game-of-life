@@ -9,9 +9,9 @@
 using namespace std;
 
 #define CUDA_FLOAT float
-#define BLOCKX_SIZE 16
-#define BLOCKY_SIZE 2
-#define BLOCKZ_SIZE 2
+#define BLOCKX_SIZE 4
+#define BLOCKY_SIZE 4
+#define BLOCKZ_SIZE 4
 #define GRIDX_SIZE 8
 #define GRIDY_SIZE 8
 #define GRIDZ_SIZE 8
@@ -98,22 +98,22 @@ int main(int argc, char **argv)
     writen(field, 8, 6, 6);
 
     ofstream out;
-        out.open("/home/starman/CUDA/game-of-life/visualisation/lnx64-compiled/data.txt");
-        if (out.is_open())
+    out.open("/home/starman/CUDA/game-of-life/visualisation/lnx64-compiled/data.txt");
+    if (out.is_open())
+    {   
+        for(int i = 0; i < xs; i++)
         {
-            for(int i = 0; i < xs; i++)
+            for(int j = 0; j < ys; j++)
             {
-                for(int j = 0; j < ys; j++)
-                {
-                    for(int k = 0; k < zs; k++)
-                    {
-                            out << field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] << ' ' << i << ' ' << j << ' ' << k << '\n';
-                    }
-                }       
-            }
-            out << 0 << ' ' << 0 << ' ' << 0 << ' ' << 0 << ' '<< '\n'; 
+                for(int k = 0; k < zs; k++)
+                {   
+                    if (field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE]!=0)
+                        out << field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] << ' ' << i << ' ' << j << ' ' << k << '\n';
+                }
+            }       
         }
-        out.close();
+        out << 0 << ' ' << 0 << ' ' << 0 << ' ' << 0 << ' '<< '\n'; 
+    }
 
     cudaMalloc ((void **) &d_tmp_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int)); 
     cudaMalloc ((void **) &d_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int));                    //allocating device memory
@@ -126,19 +126,21 @@ int main(int argc, char **argv)
 
     cudaMemcpy(d_field, field, (xs)*(ys)*(zs)*sizeof(int) ,cudaMemcpyDeviceToHost);
 
-
-
-
-    for(int i = 0; i < 10; i++)
-    {
-        for(int j = 0; j < 10; j++)
+    if (out.is_open())
+    {   
+        for(int i = 0; i < xs; i++)
         {
-           for(int k = 0; k < 10; k++)
+            for(int j = 0; j < ys; j++)
             {
-                cout << field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] << ' ' << i << ' ' << j << ' ' << k << '\n';
-            }
-        }       
+                for(int k = 0; k < zs; k++)
+                {   if (field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE]!=0)
+                        out << field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] << ' ' << i << ' ' << j << ' ' << k << '\n';
+                }
+            }       
+        }
+        out << 0 << ' ' << 0 << ' ' << 0 << ' ' << 0 << ' '<< '\n'; 
     }
-    //for(int i = 11130; i < 12000; i++) cout << field[i] << ' ' << i << '\n'; 
+    out.close();
+    for(int i = 11130; i < 12000; i++) cout << field[i] << ' ' << i << '\n'; 
     //cout << "\n"<< xs*ys*zs << " " << (xs-1) + (ys-1)*xs + (zs-1)*xs*ys;
 }   
