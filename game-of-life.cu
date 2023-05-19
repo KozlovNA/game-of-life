@@ -12,9 +12,19 @@ using namespace std;
 #define BLOCKX_SIZE 16
 #define BLOCKY_SIZE 2
 #define BLOCKZ_SIZE 2
-#define GRIDX_SIZE 2
-#define GRIDY_SIZE 2
-#define GRIDZ_SIZE 2
+#define GRIDX_SIZE 8
+#define GRIDY_SIZE 8
+#define GRIDZ_SIZE 8
+
+__device__
+int getGlobalIdx(){
+int blockId = blockIdx.x + blockIdx.y * gridDim.x
+ + gridDim.x * gridDim.y * blockIdx.z;
+int threadId = blockId * (blockDim.x * blockDim.y * blockDim.z)
+ + (threadIdx.z * (blockDim.x * blockDim.y))
+ + (threadIdx.y * blockDim.x) + threadIdx.x;
+return threadId;
+}
 
 __global__ void mat_mult_kern (int *field, int *tmp_field)
 {
@@ -70,73 +80,55 @@ int main(int argc, char **argv)
     int* test;
     dim3 field_size(xs, ys, zs);
     
-    field = (int*)malloc ((GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int));          //allocating
-    tmp_field = (int*)malloc ((GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int));
-    for(int i = 0; i < 10; i++)
-    {
-        for(int j = 0; j < 10; j++)
-        {
-           for(int k = 0; k < 10; k++)
-            {
-                field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] = 0;
-            }
-        }       
-    }
-    for(int i = 0; i < xs; i++)
-    {
-        for(int j = 0; j < ys; j++)
-        {
-           for(int k = 0; k < zs; k++)
-            {
-                tmp_field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] = 0;
-            }
-        }       
-    }
+    field = (int*)calloc ((GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE), sizeof(int));          //allocating
+    tmp_field = (int*)calloc ((GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE), sizeof(int));
     
     //cudaMalloc ((void**) &test, sizeof(int));
-    //field[5 + (7)*GRIDX_SIZE*BLOCKX_SIZE + (5)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] = 1;
-    //writen(field, 5, 7, 5);
-    /*
-    write(field, 5, 8, 5);
-    write(field, 6, 8, 5);
-    write(field, 7, 5, 5);
-    write(field, 8, 5, 5);          //start field configuration
-    write(field, 8, 6, 5);
-    write(field, 5, 7, 6);
-    write(field, 5, 8, 6);
-    write(field, 6, 8, 6);
-    write(field, 7, 5, 6);
-    write(field, 8, 5, 6);
-    write(field, 8, 6, 6);
-    */
-    //cudaMalloc ((void **) &d_tmp_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int)); 
-    //cudaMalloc ((void **) &d_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int));                    //allocating device memory
-    //cudaMemcpy(d_field, d_tmp_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int) ,cudaMemcpyDeviceToDevice);
+    writen(field, 5, 7, 5);
+    writen(field, 5, 8, 5);
+    writen(field, 6, 8, 5);
+    writen(field, 7, 5, 5);
+    writen(field, 8, 5, 5);          //start field configuration
+    writen(field, 8, 6, 5);
+    writen(field, 5, 7, 6);
+    writen(field, 5, 8, 6);
+    writen(field, 6, 8, 6);
+    writen(field, 7, 5, 6);
+    writen(field, 8, 5, 6);
+    writen(field, 8, 6, 6);
+
+    ofstream out;
+        out.open("/home/starman/CUDA/game-of-life/visualisation/lnx64-compiled/data.txt");
+        if (out.is_open())
+        {
+            for(int i = 0; i < xs; i++)
+            {
+                for(int j = 0; j < ys; j++)
+                {
+                    for(int k = 0; k < zs; k++)
+                    {
+                            out << field[i + (j)*GRIDX_SIZE*BLOCKX_SIZE + (k)*GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE] << ' ' << i << ' ' << j << ' ' << k << '\n';
+                    }
+                }       
+            }
+            out << 0 << ' ' << 0 << ' ' << 0 << ' ' << 0 << ' '<< '\n'; 
+        }
+        out.close();
+
+    cudaMalloc ((void **) &d_tmp_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int)); 
+    cudaMalloc ((void **) &d_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int));                    //allocating device memory
+    cudaMemcpy(d_field, d_tmp_field, (GRIDX_SIZE*BLOCKX_SIZE)*(GRIDY_SIZE*BLOCKY_SIZE)*(GRIDZ_SIZE*BLOCKZ_SIZE)*sizeof(int) ,cudaMemcpyDeviceToDevice);
 
     dim3 block = dim3(BLOCKX_SIZE, BLOCKY_SIZE, BLOCKZ_SIZE);       //grid parameters
     dim3 grid = dim3(GRIDX_SIZE, GRIDY_SIZE, GRIDZ_SIZE);
 
-    //mat_mult_kern<<<grid, block>>> (d_field, d_tmp_field);   //kernel
-    /*
-    for(int i = 0; i < (GRIDX_SIZE * BLOCKX_SIZE + 2); i++)
-    {
-        for(int j = 0; j < (GRIDY_SIZE * BLOCKY_SIZE + 2); j++)
-        {
-            field[i + j*xs] = 0;
-            field[i + j*GRIDX_SIZE*BLOCKX_SIZE + (GRIDX_SIZE*BLOCKX_SIZE+1)*(GRIDY_SIZE*BLOCKY_SIZE+1)*GRIDZ_SIZE*BLOCKZ_SIZE] = 0;
-        }       
-    }
-    for(int i = 0; i < (GRIDX_SIZE * BLOCKX_SIZE + 2); i++)
-    {
-        for(int j = 0; j < (GRIDZ_SIZE * BLOCKZ_SIZE); j++)
-        {
-           
-            field[i + j*GRIDX_SIZE*BLOCKX_SIZE] = 0;
-            field[i + j*GRIDX_SIZE*BLOCKX_SIZE + GRIDX_SIZE*BLOCKX_SIZE*GRIDY_SIZE*BLOCKY_SIZE*GRIDZ_SIZE*BLOCKZ_SIZE] = 0;
-        }       
-    }
-    */
-    //cudaMemcpy(d_field, field, (xs)*(ys)*(zs)*sizeof(int) ,cudaMemcpyDeviceToHost);
+    mat_mult_kern<<<grid, block>>> (d_field, d_tmp_field);   //kernel
+
+    cudaMemcpy(d_field, field, (xs)*(ys)*(zs)*sizeof(int) ,cudaMemcpyDeviceToHost);
+
+
+
+
     for(int i = 0; i < 10; i++)
     {
         for(int j = 0; j < 10; j++)
@@ -147,4 +139,6 @@ int main(int argc, char **argv)
             }
         }       
     }
+    //for(int i = 11130; i < 12000; i++) cout << field[i] << ' ' << i << '\n'; 
+    //cout << "\n"<< xs*ys*zs << " " << (xs-1) + (ys-1)*xs + (zs-1)*xs*ys;
 }   
